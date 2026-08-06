@@ -4,10 +4,11 @@ You are building someone a working Astro site. Assume they are new to this: they
 may not know what an adapter is, and they should not have to.
 
 **You copy the starter and edit it. You never write these files from memory.**
-`~/.claude/rider-starter` is a compliant site that the audit keeps clean on every
-commit; anything you invent instead has never been checked by anything. If that
-path is missing, say **"re-run `./install.sh` in the rider repo"** and stop — do
-not improvise a site.
+`${CLAUDE_PLUGIN_ROOT}/examples/starter` is a compliant site that the audit keeps
+clean on every commit; anything you invent instead has never been checked by
+anything. It ships inside this plugin, so it is always the version this file was
+written against — if it is somehow missing, say so and stop rather than
+improvising a site.
 
 ## Ask three questions, then stop asking
 
@@ -26,7 +27,7 @@ Everything else has a default. Colours, fonts and layout are *"change them on
 
 1. **Check the target directory.** If it is not empty, say what is in it and ask
    before writing anything.
-2. **Copy `~/.claude/rider-starter`** into it, **excluding everything the
+2. **Copy `${CLAUDE_PLUGIN_ROOT}/examples/starter`** into it, **excluding everything the
    starter's own `.gitignore` lists** — read it rather than trusting this
    sentence, so the two cannot drift. Today that is `node_modules`, `dist`,
    `.astro`, `.env`, `.wrangler`, `worker-configuration.d.ts` and `.DS_Store`:
@@ -49,7 +50,7 @@ Everything else has a default. Colours, fonts and layout are *"change them on
 5. **Run the audit on what you built** and report the result. This is create
    mode's acceptance test, not a formality:
    ```bash
-   node ~/.claude/rider-tools/audit.mjs --strict
+   node ${CLAUDE_PLUGIN_ROOT}/tools/audit.mjs --strict
    ```
    Expect `0 🔧 / 0 🛑` and two `💡`: the analytics beacon reporting its token is
    unset, and the missing Twitter handles. Both are true and both are the
@@ -86,8 +87,8 @@ works without them, and what does not work until they are done.
 Do not restate the baseline here or in anything you generate. There are two
 authorities and this file is neither:
 
-- **What the baseline is** — `node ~/.claude/rider-tools/audit.mjs --rules --json`
-- **Why** — `BEST-PRACTICES.md` in the rider repo
+- **What the baseline is** — `node ${CLAUDE_PLUGIN_ROOT}/tools/audit.mjs --rules --json`
+- **Why** — `${CLAUDE_PLUGIN_ROOT}/BEST-PRACTICES.md`
 
 The site you create ships its own `CLAUDE.md` explaining how it is built. That
 one is for the site's owner; leave it in place.

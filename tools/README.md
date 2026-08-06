@@ -1,6 +1,6 @@
 # rider tools
 
-The engine behind `/rider`. Detects an Astro project, runs domain checks, reports `✅ / 🔧 / 🛑 / 💡 / ⏭`, exits non-zero on findings. Zero dependencies — Node 22 built-ins only.
+The engine behind `/mwk-rider:audit`. Detects an Astro project, runs domain checks, reports `✅ / 🔧 / 🛑 / 💡 / ⏭`, exits non-zero on findings. Zero dependencies — Node 22 built-ins only.
 
 **The check set moves faster than this page.** `--rules --json` is the authoritative
 list of what the tool checks and which of it binds you — it is generated from the code,
@@ -11,17 +11,17 @@ so it cannot drift. The table below is orientation, not an inventory.
 ```bash
 cd ~/projects/<some-astro-site>
 
-node ~/.claude/rider-tools/audit.mjs            # every offline domain
-node ~/.claude/rider-tools/audit.mjs -s seo -s images   # subset
-node ~/.claude/rider-tools/audit.mjs --url https://example.com # add live checks
-node ~/.claude/rider-tools/audit.mjs --url … --post /wiki/x     # audit that page, not a discovered one
-node ~/.claude/rider-tools/audit.mjs --url … --strategy desktop # Lighthouse on desktop (default: mobile)
-node ~/.claude/rider-tools/audit.mjs --strict    # require the house-style baseline too
-node ~/.claude/rider-tools/audit.mjs --json     # machine-readable
-node ~/.claude/rider-tools/audit.mjs --quiet    # hide ✅ lines; findings, 💡 and ⏭ still print
-node ~/.claude/rider-tools/audit.mjs --verbose  # show ✅ even when piped or under $CI
-node ~/.claude/rider-tools/audit.mjs --rules --json  # every rule id, severity and why; runs nothing
-node ~/.claude/rider-tools/audit.mjs --help
+node tools/audit.mjs            # every offline domain
+node tools/audit.mjs -s seo -s images   # subset
+node tools/audit.mjs --url https://example.com # add live checks
+node tools/audit.mjs --url … --post /wiki/x     # audit that page, not a discovered one
+node tools/audit.mjs --url … --strategy desktop # Lighthouse on desktop (default: mobile)
+node tools/audit.mjs --strict    # require the house-style baseline too
+node tools/audit.mjs --json     # machine-readable
+node tools/audit.mjs --quiet    # hide ✅ lines; findings, 💡 and ⏭ still print
+node tools/audit.mjs --verbose  # show ✅ even when piped or under $CI
+node tools/audit.mjs --rules --json  # every rule id, severity and why; runs nothing
+node tools/audit.mjs --help
 ```
 
 ## Domains

@@ -1069,7 +1069,7 @@ const PSI_LEGACY = {
     metrics: { details: { items: [{ observedFirstContentfulPaint: 1500, observedLargestContentfulPaint: 2000 }] } },
   },
 };
-// Trimmed from a real PSI response (wishbusterz.com, mobile, 2026-08-03), with
+// Trimmed from a real PSI response (a live site, mobile, 2026-08-03), with
 // the failing-checklist entry flipped so the failure path is covered too.
 const PSI_INSIGHT = {
   audits: {
@@ -1501,6 +1501,40 @@ const known = knownRuleIds();
 const uncatalogued = [...seenRuleIds].filter(id => !known.has(id)).sort();
 check(`every rule id emitted by this suite is catalogued (${seenRuleIds.size} seen)`,
   uncatalogued.length === 0, uncatalogued.join(', '));
+
+console.log('the plugin wiring resolves — a broken path here is a dead command:');
+// The commands and the skill router reach their instructions by PATH, and a
+// path is only checked when someone runs the command. Nothing else in this file
+// would notice a renamed reference file: the audit tool would still pass every
+// assertion above while `/mwk-rider:audit` loaded nothing.
+const ROOT = join(here, '..');
+const manifest = JSON.parse(readFileSync(join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
+const market = JSON.parse(readFileSync(join(ROOT, '.claude-plugin', 'marketplace.json'), 'utf8'));
+check('plugin.json and marketplace.json parse, and agree on the plugin name',
+  manifest.name === 'mwk-rider' && market.plugins.some(p => p.name === manifest.name),
+  `${manifest.name} vs ${market.plugins.map(p => p.name).join(', ')}`);
+
+// ${CLAUDE_PLUGIN_ROOT} is expanded before the model reads the file, so the
+// literal string is what we resolve against the repo root here.
+const commandFiles = ['audit.md', 'create.md'];
+for (const name of commandFiles) {
+  const body = readFileSync(join(ROOT, 'commands', name), 'utf8');
+  const refs = [...body.matchAll(/\$\{CLAUDE_PLUGIN_ROOT\}\/(\S+)/g)].map(m => m[1]);
+  check(`commands/${name} inlines at least one plugin file, and every path exists`,
+    refs.length > 0 && refs.every(r => existsSync(join(ROOT, r))),
+    refs.filter(r => !existsSync(join(ROOT, r))).join(', ') || `${refs.length} ref(s)`);
+}
+const router = readFileSync(join(ROOT, 'skills', 'rider', 'SKILL.md'), 'utf8');
+const routed = [...router.matchAll(/`references\/([A-Z]+\.md)`/g)].map(m => m[1]);
+check('the skill router names both modes, and both files are there',
+  routed.length === 2 && routed.every(f => existsSync(join(ROOT, 'skills', 'rider', 'references', f))),
+  routed.join(', '));
+// The commands must load the SAME files the router sends an agent to, or a typed
+// command and an inferred mode quietly become two different products.
+const inlined = commandFiles.flatMap(name =>
+  [...readFileSync(join(ROOT, 'commands', name), 'utf8').matchAll(/references\/([A-Z]+\.md)/g)].map(m => m[1]));
+check('  …and the commands inline those same two files, not copies of them',
+  routed.every(f => inlined.includes(f)), `router: ${routed.join(', ')} | commands: ${inlined.join(', ')}`);
 
 console.log('');
 if (failures === 0) { console.log('PASS — all assertions ok'); process.exit(0); }

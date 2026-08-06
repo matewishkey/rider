@@ -11,8 +11,8 @@ By submitting a pull request you agree that your contribution is licensed under 
 There is nothing to install. You need Node 22 or newer, and that's it — no `npm install`, no root `package.json`, no API keys.
 
 ```bash
-git clone https://github.com/matewishkey/rider.git
-cd rider
+git clone https://github.com/matewishkey/mwk-rider.git
+cd mwk-rider
 node tools/test.mjs          # the gate — must pass
 ```
 
@@ -20,7 +20,7 @@ node tools/test.mjs          # the gate — must pass
 
 **1. A new check needs both halves of a test.** `tools/test.mjs` asserts that checks stay quiet on the two compliant example sites — `examples/_fixture-i18n/` and `examples/starter/` — *and* that each one actually fires on a purpose-built known-bad project. A compliant site alone proves nothing: a check that is broken and never fires passes it just as happily as one that works.
 
-And if your change moves the baseline, **both example sites are upgraded in the same commit**. `examples/starter/` is what `/rider` copies to create a site, so a starter that has fallen behind the checks ships non-compliant sites to people who trusted it.
+And if your change moves the baseline, **both example sites are upgraded in the same commit**. `examples/starter/` is what `/mwk-rider:create` copies to create a site, so a starter that has fallen behind the checks ships non-compliant sites to people who trusted it.
 
 **2. A new check must be classified in `tools/lib/policy.mjs`.** Is it universal practice, or this project's house style? Anything unclassified defaults to universal, which means it becomes a required finding that fails the build of every stranger who doesn't share the opinion. Ask: *could a well-built Astro site reasonably do this differently?* If yes, it's house style — it reports as `💡 [baseline]` and only bites under `--strict`.
 

@@ -1,8 +1,8 @@
 # Mate Wish Key Rider
 
-<sub>`rider`</sub>
+<sub>`mwk-rider`</sub>
 
-An on-demand best-practices auditor for **Astro** sites — and a compliant site to start from. One slash command (`/rider`), one zero-dependency script, ten domains (seven offline + three live). No framework, no contract, nothing installed into the sites it audits — it reports, you decide.
+An on-demand best-practices auditor for **Astro** sites — and a compliant site to start from. A Claude Code plugin — two slash commands (`/mwk-rider:audit`, `/mwk-rider:create`) over one zero-dependency script, ten domains (seven offline + three live). No framework, no contract, nothing installed into the sites it audits — it reports, you decide.
 
 ```
 ✅ modules: astro:version — ^7.1.6
@@ -19,9 +19,9 @@ audit complete — 1 finding to address (exit 1).
 No install, no dependencies, no API key. From the root of any Astro project:
 
 ```bash
-git clone --depth 1 https://github.com/matewishkey/rider.git /tmp/rider
+git clone --depth 1 https://github.com/matewishkey/mwk-rider.git /tmp/mwk-rider
 npm run build          # optional, but the image + perf checks read dist/
-node /tmp/rider/tools/audit.mjs
+node /tmp/mwk-rider/tools/audit.mjs
 ```
 
 That's the whole thing. You get findings like:
@@ -46,14 +46,14 @@ audit complete — 5 findings to address (exit 1).
 
 ```bash
 export PAGESPEED_API_KEY=…
-node /tmp/rider/tools/audit.mjs -s lighthouse --url https://example.com
+node /tmp/mwk-rider/tools/audit.mjs -s lighthouse --url https://example.com
 ```
 
 **Want to test the running site in a real browser?** Install Playwright in *your* project and the `browser` domain switches itself on:
 
 ```bash
 npm i -D playwright && npx playwright install chromium
-node /tmp/rider/tools/audit.mjs -s browser --url https://example.com
+node /tmp/mwk-rider/tools/audit.mjs -s browser --url https://example.com
 ```
 
 That catches what no static check can: scripts that throw, assets that 404 only when requested, real measured layout shift, and images served at 4× the size they're displayed.
@@ -100,25 +100,28 @@ The static domains answer *"is it wired right?"*; `lighthouse` answers *"what's 
 
 ## Install
 
-```bash
-git clone https://github.com/matewishkey/rider.git
-cd rider && ./install.sh
+In [Claude Code](https://claude.com/claude-code):
+
+```
+/plugin marketplace add matewishkey/mwk-rider
+/plugin install mwk-rider@mwk-rider
 ```
 
-This symlinks the `/rider` command and its tools into `~/.claude/`. It installs nothing into any project and never touches a project's `CLAUDE.md`. Re-run `./install.sh` after `git pull` to update.
+Update later with `/plugin update mwk-rider`. It installs nothing into any project and never touches a project's `CLAUDE.md`.
 
-Requires **Node 22+**. No `npm install` — the tool uses Node built-ins only.
+Requires **Node 22+**. No `npm install` — the tool uses Node built-ins only, and the plugin carries them with it.
 
 ## Use
 
 From inside any Astro project, in [Claude Code](https://claude.com/claude-code):
 
 ```
-/rider                 # offline: source + dist checks
-/rider https://example.com    # also check the live/served site
+/mwk-rider:audit                        # offline: source + dist checks
+/mwk-rider:audit https://example.com    # also check the live/served site
+/mwk-rider:create                       # scaffold a new site in an empty directory
 ```
 
-In an **empty** directory the same command scaffolds instead. It asks three
+`/mwk-rider:create` scaffolds. It asks three
 questions — site name and domain, contact email, a one-line tagline — then copies
 [`examples/starter/`](examples/starter), edits them in, builds, and runs
 the audit on what it just made. That last step is the point: the starter is kept
@@ -133,11 +136,11 @@ with real `<lastmod>`. Two dashboard steps are left for you, and it says which.
 Or call the script directly — it's a plain CLI, Claude Code is optional:
 
 ```bash
-node ~/.claude/rider-tools/audit.mjs --help
-node ~/.claude/rider-tools/audit.mjs                     # everything offline
-node ~/.claude/rider-tools/audit.mjs -s seo -s images    # scope to domains
-node ~/.claude/rider-tools/audit.mjs --url https://example.com  # add live + lighthouse
-node ~/.claude/rider-tools/audit.mjs --json              # machine-readable
+node /tmp/mwk-rider/tools/audit.mjs --help
+node /tmp/mwk-rider/tools/audit.mjs                     # everything offline
+node /tmp/mwk-rider/tools/audit.mjs -s seo -s images    # scope to domains
+node /tmp/mwk-rider/tools/audit.mjs --url https://example.com  # add live + lighthouse
+node /tmp/mwk-rider/tools/audit.mjs --json              # machine-readable
 ```
 
 `--url` works from **any directory** — the offline domains need an Astro project in the cwd, but a live/lighthouse run only needs the URL.
@@ -176,12 +179,18 @@ The tool only ever *reads* through this API. It never provisions, never writes.
 ## Layout
 
 ```
+.claude-plugin/
+  plugin.json                the plugin manifest
+  marketplace.json           the catalogue that serves it (this repo, one entry)
+commands/
+  audit.md, create.md        the two slash commands — thin, and each inlines the
+                             mode's own instructions rather than restating them
 skills/rider/
-  SKILL.md                   how an agent picks a mode, then runs and reports an
-                             audit (install.sh links it as BOTH the skill and the
-                             /rider command — one file, no drift)
-  references/CREATE.md       the steps for create mode, kept out of SKILL.md so
-                             the file an agent always loads stays short
+  SKILL.md                   the mode router, for when an agent invokes rider
+                             itself and has to infer create vs audit
+  references/AUDIT.md        how to run and report an audit — loaded by the skill
+                             and by /mwk-rider:audit, one file either way
+  references/CREATE.md       the steps for create mode, same arrangement
 tools/
   audit.mjs                  entry: detect project, run domains, report
   test.mjs                   the gate: fixture + known-bad synthetic projects
@@ -190,15 +199,13 @@ tools/
        image-size,src-scan,untrusted,analytics-signals,search-engines,embed-hosts,
        fonts-config}.mjs
 examples/starter/            the reference site: single-locale, compliant under
-                             --strict, and what `/rider` copies to create a site
+                             --strict, and what create mode copies
 examples/_fixture-i18n/      a compliant multi-locale Astro site — the harder
                              test target (i18n, search, preview routes)
 examples/ci/audit.yml        copy-paste GitHub Actions job for your own site
 BEST-PRACTICES.md            the why behind every check + the practice/check registry
 docs/DEVELOPING.md           testing discipline and design decisions
 .env.example                 the optional API keys
-install.sh                   symlink the skill, the command, the tools and the
-                             starter into ~/.claude
 ```
 
 ## Contributing

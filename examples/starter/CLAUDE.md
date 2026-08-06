@@ -84,14 +84,16 @@ site.
 
 ## Before you ship a change
 
-Run the auditor:
+Run the auditor — `/mwk-rider:audit` in Claude Code, or from a checkout of the
+tool:
 
 ```bash
-node ~/.claude/rider-tools/audit.mjs --strict
+git clone --depth 1 https://github.com/matewishkey/mwk-rider.git /tmp/mwk-rider
+node /tmp/mwk-rider/tools/audit.mjs --strict
 ```
 
 It should stay at `0 🔧 / 0 🛑`. The one standing `💡` is the analytics beacon
 reporting that its token is unset — expected until step 1 above is done.
 
 What each rule is and why lives in the tool, not here:
-`node ~/.claude/rider-tools/audit.mjs --rules --json`.
+`node /tmp/mwk-rider/tools/audit.mjs --rules --json`.

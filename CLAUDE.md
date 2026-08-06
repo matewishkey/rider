@@ -1,11 +1,11 @@
-# Mate Wish Key Rider (`rider`) — dev notes for this repo
+# Mate Wish Key Rider (`mwk-rider`) — dev notes for this repo
 
-This repo is **rider**: a single on-demand slash command (`/rider`) that checks an Astro site against baseline best practices. It is *not* a framework — it installs nothing into the sites it audits and never touches their `CLAUDE.md`. You run it when you want a compliance check; it prints findings and suggests fixes.
+This repo is **mwk-rider**: a Claude Code plugin whose two commands (`/mwk-rider:audit`, `/mwk-rider:create`) check an Astro site against baseline best practices, or start one that already complies. It is *not* a framework — it installs nothing into the sites it audits and never touches their `CLAUDE.md`. You run it when you want a compliance check; it prints findings and suggests fixes.
 
 
 ## What it is
 
-- **One skill, two modes:** `skills/rider/SKILL.md` — a ~10-line router at the top picks **create** (scaffold a new site from `examples/starter/`, steps in `skills/rider/references/CREATE.md`) or **audit** (the rest of the file: load the project's details, run the tool, walk the findings). `install.sh` links the skill *directory* — a file link cannot carry `references/` — and links `SKILL.md` again as the `/rider` command, so the two cannot drift.
+- **Two modes, one copy of each.** `skills/rider/SKILL.md` is a router *only*: it picks **create** or **audit** and sends the reader to `references/CREATE.md` or `references/AUDIT.md`. The commands in `commands/` inline those same two files with `@${CLAUDE_PLUGIN_ROOT}/…`, so a typed command and an inferred mode run identical instructions and there is no second copy to drift. The router exists for the inferred path alone — never duplicate a mode's steps into it.
 - **One tool:** `tools/audit.mjs` — the entry. Detects an Astro project, runs the offline domain checks, and (with `--url`) the live ones. Reports `✅ / 🔧 / 🛑 / 💡 / ⏭` and exits non-zero on findings.
 - **Seven offline domains + three `--url` domains**, one module each under `tools/checks/`:
   - `modules` — baseline stack present + wired (version, integrations, `output: 'static'`, strict TS, an adapter iff a route renders on demand); search is optional, two engines at once is a finding.
@@ -27,17 +27,25 @@ This repo is **rider**: a single on-demand slash command (`/rider`) that checks 
 - **Surface, don't auto-fix.** Findings are suggestions. Only edit a project when the user asks.
 - **Practice ⇒ check (the `BEST-PRACTICES.md` contract).** `BEST-PRACTICES.md` is the *why* behind every check and a living practice↔check registry. Every best practice there has an enforcing check in `tools/checks/*`; a practice with no check is a tracked *gap*, not a practice yet. Adding one = understand the integration (context7) → write the why in `BEST-PRACTICES.md` → bake the check → verify on the fixture (stays `0 🔧`) + a real site → ship. Keep `BEST-PRACTICES.md` § Gaps current.
 - **Verify Astro/Cloudflare specifics via `context7`** before writing about them or generating config/code (hard rule).
-- **A brand rename does not rewrite evidence.** The docs say Mate Wish Key, but two comments
-  still name `wishbusterz.com` — `tools/checks/live.mjs` (the `/glossary/agent/` case behind
-  issue #11) and `tools/test.mjs` (the trimmed PSI fixture). Both record a host that really
-  answered on 2026-08-03, and `matewishkey.com` does not resolve yet. Renaming them would
-  attribute a captured response to a server that never served it. They change when the site's
-  DNS does — a find-and-replace over the repo is the wrong tool for a provenance comment.
+- **Provenance comments name a date, never a host.** Two comments used to name the site
+  that was measured on 2026-08-03 (`tools/checks/live.mjs`, the `/glossary/agent/` case
+  behind issue #11; `tools/test.mjs`, the trimmed PSI fixture). The names are gone — that
+  host was on loan from the show and the credit is the show's. What stays is what makes
+  the comment worth anything: a real site, that date, what it actually answered. Never
+  relabel a captured response with a host that did not serve it; write "a real site"
+  instead, which is true whatever the branding does next.
 - **Two example sites, upgraded together.** `examples/_fixture-i18n/` is the multi-locale exerciser (i18n, search, preview routes); `examples/starter/` is the single-locale reference and what create mode copies. Both must be `0 🔧 / 0 🛑` in default **and** `--strict`, and CI runs them as a matrix. **Raising the baseline means upgrading both in the same commit** — a floor moved in one makes the other's clean run a lie. Testing/deploy discipline lives in `docs/DEVELOPING.md`.
 - **The starter is the baseline's existence proof, not a second copy of it.** The checks define compliant; `examples/starter/` is a site that is. `references/CREATE.md` describes only the *interaction* and is forbidden from restating the rules — it points at `--rules --json` for what, and `BEST-PRACTICES.md` for why. A third prose copy of the baseline is how all three drift.
-- **Create mode copies, never composes.** It copies `~/.claude/rider-starter` verbatim and edits four files. Writing files from memory is exactly how a scaffold stops matching the reference the audit keeps clean; if the link is missing it says "re-run ./install.sh" and stops.
+- **Create mode copies, never composes.** It copies `${CLAUDE_PLUGIN_ROOT}/examples/starter` verbatim and edits four files. Writing files from memory is exactly how a scaffold stops matching the reference the audit keeps clean. The starter ships *inside* the plugin, so it is always the version create mode was written against — that used to be a symlink that could go missing.
 
 ## Install
 
-`./install.sh` creates four symlinks: `skills/rider/` → `~/.claude/skills/rider` (a directory, so `references/` comes with it), `skills/rider/SKILL.md` → `~/.claude/commands/rider.md`, `tools/` → `~/.claude/rider-tools`, and `examples/starter/` → `~/.claude/rider-starter` (what create mode copies). Idempotent. Re-run after `git pull`.
+It is a plugin, and this repo is its marketplace:
+
+```
+/plugin marketplace add matewishkey/mwk-rider
+/plugin install mwk-rider@mwk-rider
+```
+
+`.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`; `commands/` and `skills/` are found by convention. **`${CLAUDE_PLUGIN_ROOT}` is expanded in the markdown before the model sees it and is NOT set in the shell** — verified, and the reason a path can look right and still fail at the first Bash call. Working on the plugin means `claude --plugin-dir ~/projects/mwk-rider`; an installed copy is version-pinned in the plugin cache and a `git pull` here does not touch it.
 

@@ -170,23 +170,37 @@ the alternative is a starter that quietly stops complying with the tool that shi
       run that measured it is written down. See round 5 above.
 - [ ] If `tools/checks/*.mjs` changed: also run it against a real site — drift there is
       expected and informational, and it's how you confirm the check fires in the wild.
-- [ ] If `skills/rider/**` or `install.sh` changed: re-run `./install.sh`, then confirm
-      `node ~/.claude/rider-tools/audit.mjs --help` resolves, that
-      `~/.claude/skills/rider/references/CREATE.md` is readable **through** the directory
-      symlink, and that `~/.claude/rider-starter` points at your checkout.
+- [ ] If `skills/**`, `commands/**` or `.claude-plugin/**` changed: load the working tree
+      as a plugin (`claude --plugin-dir ~/projects/mwk-rider`) and run the command you
+      touched end to end. `${CLAUDE_PLUGIN_ROOT}` is expanded in the markdown before the
+      model reads it, and is **not** set in the shell — so a path that only *looks* right
+      fails at the first Bash call, and nothing but running it will tell you.
 - [ ] If create mode changed: scaffold end to end into an empty directory, let it build,
       and confirm the audit it runs on itself comes back `0 🔧`.
 
 ## Distribution
 
-A dev tool — no deploy, no live UI. Distribution is consumer pull: `git pull &&
-./install.sh`. `install.sh` is idempotent and creates four links:
+A dev tool — no deploy, no live UI. It ships as a **Claude Code plugin**, and this repo
+is also the marketplace that serves it:
 
-| Link | Target | Why |
-|---|---|---|
-| `~/.claude/skills/rider` | `skills/rider/` | A **directory** link — a file link cannot carry `references/CREATE.md` |
-| `~/.claude/commands/rider.md` | `skills/rider/SKILL.md` | The slash command is the same file, so the two cannot drift |
-| `~/.claude/rider-tools` | `tools/` | What the skill invokes |
-| `~/.claude/rider-starter` | `examples/starter/` | What create mode copies |
+```
+/plugin marketplace add matewishkey/mwk-rider
+/plugin install mwk-rider@mwk-rider
+```
+
+`.claude-plugin/plugin.json` is the manifest; `.claude-plugin/marketplace.json` is the
+one-entry catalogue. `commands/`, `skills/` and everything they reach are discovered by
+convention — nothing is registered by hand, and there is no installer to keep in step.
+
+**Developing is not the same as consuming.** An installed plugin is a version-pinned copy
+in `~/.claude/plugins/cache/`, so a `git pull` here does not change it. Work against the
+tree instead:
+
+```bash
+claude --plugin-dir ~/projects/mwk-rider
+```
+
+Releasing is a version bump in `plugin.json` plus a push; consumers take it with
+`/plugin update mwk-rider`.
 
 Pure Node ESM on system Node 22+, no dependencies, no `package.json` at the repo root.

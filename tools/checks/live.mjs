@@ -618,9 +618,9 @@ async function discoverPost(home, base, get) {
   // The feed first: it is the site's own list of what it considers an article,
   // so it answers the question the post-only checks are actually asking. The
   // sitemap lists every indexable page equally, and "deepest path wins" then
-  // picks whatever sorts first — on wishbusterz.com that was /glossary/agent/, a
-  // DefinedTerm page, while the BlogPosting-carrying /projects/* sat right next
-  // to it. Reported by matewishkey-web.
+  // picks whatever sorts first — on the site that reported this it was
+  // /glossary/agent/, a DefinedTerm page, while the BlogPosting-carrying
+  // /projects/* sat right next to it (issue #11, 2026-08-03).
   const fromFeed = await feedCandidates(base, get);
   const feedPick = pickContentPath(fromFeed, base);
   if (feedPick) return feedPick;
