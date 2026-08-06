@@ -161,6 +161,59 @@ for (const [name, bytes] of [['VP8 lossy', webpLossy(1600, 900)], ['VP8L lossles
 check('a RIFF container that is not WebP → null',
   imageSize(Uint8Array.from([...'RIFF', 0, 0, 0, 0, ...'WAVE'].map(c => typeof c === 'string' ? c.charCodeAt(0) : c)).buffer) === null);
 
+// AVIF: an ISOBMFF box tree. The size is an `ispe` property under meta/iprp/ipco
+// addressed by 1-based position, and `ipma` says which property belongs to which
+// item — so a file can carry several sizes and only one of them is the image a
+// browser paints. Built here rather than checked in as binary; the parser was
+// verified against real encoder output first — libvips and ffmpeg files
+// (including one with an alpha auxiliary item), then 80 real build artifacts
+// from three sites re-encoded to avif, every parsed size matching both the webp
+// the site actually shipped and what libvips reports back (0 mismatches).
+const u32 = n => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+const ascii = s => [...s].map(c => c.charCodeAt(0));
+const box = (type, payload) => [...u32(payload.length + 8), ...ascii(type), ...payload];
+const fullBox = (type, version, payload) => box(type, [version, 0, 0, 0, ...payload]);
+const ispe = (w, h) => fullBox('ispe', 0, [...u32(w), ...u32(h)]);
+// items: [{ id, props }] where props are 1-based indices into the ipco children.
+const avif = ({ brands = ['avif'], props, items, primary = 1, withIpma = true }) => {
+  const ipma = fullBox('ipma', 0, [...u32(items.length),
+    ...items.flatMap(it => [0, it.id, it.props.length, ...it.props])]);
+  const meta = fullBox('meta', 0, [
+    ...fullBox('pitm', 0, [0, primary]),
+    ...box('iprp', [...box('ipco', props.flat()), ...(withIpma ? ipma : [])]),
+  ]);
+  return Uint8Array.from([
+    ...box('ftyp', [...ascii(brands[0]), 0, 0, 0, 0, ...brands.slice(1).flatMap(ascii)]),
+    ...meta,
+    ...box('mdat', [0]),
+  ]).buffer;
+};
+const oneItem = imageSize(avif({ props: [ispe(1600, 900)], items: [{ id: 1, props: [1] }] }));
+check('AVIF 1600×900 parsed (ftyp → meta → iprp → ipco → ispe)',
+  oneItem?.w === 1600 && oneItem?.h === 900, JSON.stringify(oneItem));
+// The assertion that separates reading the association table from reading the
+// first ispe and getting lucky: a thumbnail's size sits first, the primary
+// item's second. Taking the first would understate every such image's width.
+const thumbed = imageSize(avif({
+  props: [ispe(320, 180), ispe(1600, 900)],
+  items: [{ id: 1, props: [1] }, { id: 2, props: [2] }],
+  primary: 2,
+}));
+check('AVIF with a thumbnail first reports the PRIMARY item, not the first ispe',
+  thumbed?.w === 1600 && thumbed?.h === 900, JSON.stringify(thumbed));
+const compat = imageSize(avif({ brands: ['mif1', 'avif'], props: [ispe(1200, 630)], items: [{ id: 1, props: [1] }] }));
+check('AVIF declared by a compatible brand (major mif1) is still parsed',
+  compat?.w === 1200 && compat?.h === 630, JSON.stringify(compat));
+// No association table is malformed input. The first ispe errs small (a
+// thumbnail, not the full image), and small is a missed finding, never a
+// fabricated one — the same direction every unreadable format takes.
+const noIpma = imageSize(avif({ props: [ispe(1600, 900)], items: [{ id: 1, props: [1] }], withIpma: false }));
+check('AVIF with no ipma falls back to the first ispe', noIpma?.w === 1600, JSON.stringify(noIpma));
+check('an ISOBMFF file that is not AVIF (ftyp mp42) → null',
+  imageSize(Uint8Array.from(box('ftyp', [...ascii('mp42'), 0, 0, 0, 0])).buffer) === null);
+check('a truncated AVIF → null, not a crash',
+  imageSize(new Uint8Array(avif({ props: [ispe(1600, 900)], items: [{ id: 1, props: [1] }] })).slice(0, 40).buffer) === null);
+
 console.log('adapter checks are gated on on-demand rendering, not <Image> presence:');
 // <Image> on a fully prerendered build is optimized at build time by Sharp → no
 // adapter needed. The Cloudflare image service only matters when a route renders
@@ -564,8 +617,10 @@ const srvFile = join(srvDir, 'server.mjs');
 // A small site whose content lives at /wiki/, NOT /blog/. Discovery used to
 // match `href=".../blog/..."` and nothing else, so on all five dogfood sites the
 // whole post-only block silently never ran and the audit reported "clean".
+const AVIF_CARD_B64 = Buffer.from(new Uint8Array(avif({ props: [ispe(1200, 630)], items: [{ id: 1, props: [1] }] }))).toString('base64');
 writeFileSync(srvFile, `
 import { createServer } from 'node:http';
+const avifCard = Buffer.from('${AVIF_CARD_B64}', 'base64');
 const png = Buffer.concat([
   Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]),
   Buffer.from([0,0,0,13]), Buffer.from('IHDR'),
@@ -588,6 +643,11 @@ const glossary = '<!doctype html><html><head>' + head('/glossary/agent', '{"@typ
 // Wrappers only — says nothing about what the page is, so it stays a finding.
 const bare = '<!doctype html><html><head>' + head('/bare', '[{"@type":"WebPage"},{"@type":"WebSite"}]')
   + '</head><body><h1>Bare</h1></body></html>';
+// A card served as AVIF. Its size is readable now, so the 600×315 minimum has to
+// be verified rather than skipped as an unreadable container.
+const avifCardPage = '<!doctype html><html><head>'
+  + head('/avifcard', '{"@type":"TechArticle"}').split('/og/card.png').join('/og/card.avif')
+  + '</head><body><h1>Avif card</h1></body></html>';
 // Two images, both without width/height: one absolutely inset to fill a sized
 // parent (out of flow, cannot shift anything) and one plain in-flow shot. Only
 // the second is a CLS defect, and the rule that says so is inside an @media.
@@ -618,7 +678,9 @@ const srv = createServer((req, res) => {
     res.writeHead(200, { 'content-type': 'text/javascript', 'content-length': String(buf.length), 'cache-control': 'no-cache' });
     return res.end(req.method === 'HEAD' ? undefined : buf);
   }
+  if (url === '/og/card.avif') return send(avifCard, 'image/avif');
   if (url.startsWith('/og/')) return send(png, 'image/png');
+  if (url === '/avifcard') return send(avifCardPage, 'text/html');
   if (url === '/sitemap-index.xml') return send(sitemapIndex.split('HOST').join(host), 'application/xml');
   if (url === '/sitemap-0.xml') return send(sitemap.split('HOST').join(host), 'application/xml');
   if (url === '/wiki/kettle-clock') return send(entry, 'text/html');
@@ -680,6 +742,14 @@ const wrapperOnly = runJson(tmpdir(), ['-s', 'live', '--url', `http://127.0.0.1:
   .json?.results.find(r => r.id === 'data/post-jsonld');
 check('  …while WebPage/WebSite wrappers alone still fail — they say nothing about what the page is',
   wrapperOnly?.outcome === 'fix', JSON.stringify(wrapperOnly));
+
+// The og-card gate used to be PNG/JPEG only, and said so in a ⏭ that was true
+// when it was written. A card in any container whose bytes we can read must be
+// measured — skipping it is the 404-screenshot case going unverified again.
+const avifCardRow = runJson(tmpdir(), ['-s', 'live', '--url', `http://127.0.0.1:${port}`, '--post', '/avifcard'])
+  .json?.results.find(r => r.id === 'seo/og-image-card');
+check('an AVIF og card is measured, not skipped as an unreadable container',
+  avifCardRow?.outcome === 'pass' && /1200×630/.test(avifCardRow.message ?? ''), JSON.stringify(avifCardRow));
 
 // perf:cache:_astro against a local server that ignores _headers. Measured:
 // `astro dev` and `astro preview` serve /_astro/* no-cache whatever the file
@@ -1187,6 +1257,21 @@ check('  …advisory even under --strict — the promotion condition is a wider 
   wide.every(r => r.outcome !== 'fix' && r.outcome !== 'block'));
 check('  …and a /cdn-cgi/image/ URL is judged on the width it pins',
   singleRows({}, ONE_IMG('https://media.x.test/cdn-cgi/image/width=1600,format=auto,quality=80/hero.jpg'))[0]?.outcome === 'suggest');
+
+// The blind spot this check shipped with (issue #21): a site whose build emits
+// avif reached the same `⏭ nothing to check` as a site with no images at all,
+// because no candidate's width could be read. Identical image, other container.
+const avifFile = (w, h, kb) => {
+  const head = new Uint8Array(avif({ props: [ispe(w, h)], items: [{ id: 1, props: [1] }] }));
+  const out = new Uint8Array(Math.max(head.length, kb * 1024));
+  out.set(head);
+  return Buffer.from(out);
+};
+const wideAvif = singleRows({ 'dist/hero.avif': avifFile(1600, 900, 120) }, ONE_IMG('/hero.avif'));
+check('an avif build is judged on its own widths, not skipped as unreadable',
+  wideAvif[0]?.outcome === 'suggest' && /1600px/.test(wideAvif[0]?.message ?? ''), JSON.stringify(wideAvif[0]));
+check('  …and its guards work the same — a 640px avif portrait is still no finding',
+  singleRows({ 'dist/face.avif': avifFile(640, 640, 120) }, ONE_IMG('/face.avif'))[0]?.outcome === 'pass');
 
 // Guard 1: the measured width floor. Every single-width image in three real
 // builds that was MEANT to be one came in at or under 720px.

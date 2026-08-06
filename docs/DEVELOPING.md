@@ -103,6 +103,21 @@ the alternative is a starter that quietly stops complying with the tool that shi
   guards then had to exclude. A number picked first and sanity-checked after would have
   shipped 640 px (the neighbouring check's floor) and fired on correct code.
 
+  Round 6 (2026-08-06, AVIF in `tools/lib/image-size.mjs`) is the one to copy when a check
+  reads **bytes**, where the real-site loop above proves nothing: no repo on the box builds
+  to avif, so every site passed the check identically before and after. Two instruments
+  replace it. First, parse real encoder output — libvips and ffmpeg disagree about box
+  order and about which brand they put in `ftyp`, so a parser that only ever saw its own
+  test fixtures is a parser tested against your own assumptions. Then convert a real build
+  to the format under test (133 artifacts of `tasmanvisa-web` webp → avif with `sharp`,
+  references rewritten) and diff the audit against its unconverted twin: identical output
+  is the assertion, and any difference is a format assumption hiding somewhere. Second,
+  cross-check widths at volume — 80 real build images re-encoded, each parsed size matched
+  against both the webp the site shipped and what libvips reports, 0 mismatches. And when
+  the point of the work is a *silent* blind spot, prove the silence existed:
+  `git archive HEAD tools | tar -x -C <tmp>` gives you the old tool to run beside the new
+  one on the same input.
+
   **Most sibling repos have no `dist/` and the dist-reading checks are the interesting
   half**, so a real-site round usually means building them. Check `git check-ignore -q dist`
   first and skip any repo where it is not ignored — building there would drop hundreds of

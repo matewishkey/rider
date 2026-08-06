@@ -327,15 +327,15 @@ function rebaseOnAudited(assetUrl, html, base) {
 // is the generator's resp.ok() guard — a site-side fix (see BEST-PRACTICES § seo),
 // not something the audit can catch from outside.
 async function checkOgCard(ogImg, html, reporter, base) {
-  if (!/\.(png|jpe?g)(\?|#|$)/i.test(new URL(ogImg, base).pathname)) {
-    reporter.skip('seo', 'og:image:card', 'card is not PNG/JPEG — its intrinsic size cannot be read from the bytes, so the 600×315 minimum was NOT verified', { url: ogImg });
+  if (!/\.(png|jpe?g|webp|avif)(\?|#|$)/i.test(new URL(ogImg, base).pathname)) {
+    reporter.skip('seo', 'og:image:card', 'card is not one of the formats whose pixel size can be read from bytes (PNG/JPEG/WebP/AVIF) — the 600×315 minimum was NOT verified', { url: ogImg });
     return;
   }
   // A relative og:image used to throw inside fetchBytes and be swallowed, so the
   // check emitted no line at all — indistinguishable from "card is fine".
   const buf = await fetchBytes(absolutize(ogImg, base));
   const size = buf && imageSize(buf);
-  if (!size) return; // format we don't parse (WebP/AVIF/SVG) — leave the resolves pass standing
+  if (!size) return; // unfetchable, truncated, or a container we can't read — leave the resolves pass standing
   const { w, h } = size;
   const declaredW = Number(html.match(/<meta[^>]+property=["']og:image:width["'][^>]+content=["'](\d+)["']/)?.[1]) || 0;
   const declaredH = Number(html.match(/<meta[^>]+property=["']og:image:height["'][^>]+content=["'](\d+)["']/)?.[1]) || 0;

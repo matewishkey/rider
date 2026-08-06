@@ -88,7 +88,7 @@ tools/
   lib/
     project.mjs          cwd → Astro-project detection + config/source loading
     policy.mjs           universal vs house-style vs advisory (drives --strict)
-    image-size.mjs       PNG/JPEG/WebP intrinsic dimensions from raw bytes
+    image-size.mjs       PNG/JPEG/WebP/AVIF intrinsic dimensions from raw bytes
     src-scan.mjs         read src/ once; find head-meta by behaviour, not filename
     reporter.mjs         outcome collection, human/JSON output, exit code
     rules.mjs            the rule catalogue behind --rules --json

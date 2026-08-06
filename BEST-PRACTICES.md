@@ -382,8 +382,16 @@ thing a version bump leaves behind. Each maps to a documented v7 breaking change
   A candidate is a built `<img>` with no `srcset` and no `<picture>` ancestor
   (its `<source>` siblings are the ladder) whose delivered width is knowable —
   the width a `/cdn-cgi/image/` URL pins, or the intrinsic width of the file it
-  resolves to in `dist/`. A remote host or an AVIF file is unknowable offline,
+  resolves to in `dist/`. PNG, JPEG, WebP and AVIF are all readable from their
+  own bytes (`tools/lib/image-size.mjs`); a remote host is unknowable offline,
   and an unknown width is never a finding.
+
+  AVIF was the exception until issue #21, and it was the expensive kind of
+  silence: a build that emits avif produced `⏭ nothing to check` — the same line
+  a site with no images gets — because every candidate's width was unreadable.
+  Reading it means walking ISOBMFF boxes to the `ispe` the primary item claims,
+  not the first one in the file, since a thumbnail or an alpha plane carries its
+  own and taking the wrong one understates the width the browser paints.
 
   **The trap, and why this took three attempts to ship.** A legitimately
   fixed-width image is common and *correct*: a logo, an avatar, an icon, a
