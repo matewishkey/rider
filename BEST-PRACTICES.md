@@ -1145,5 +1145,9 @@ the bullet here is only its summary.
   `analytics` live check confirms the Zaraz loader is present, but the consent
   modal and whether tags hold until consent are decided by client JS at runtime
   (`zarazConsentAPIReady`, the `cf_consent` cookie) — invisible to a `fetch` of
-  the HTML. Truly verifying them needs a headless browser, which the no-deps tool
-  doesn't run. Tracked here rather than faked from static HTML.
+  the HTML, and never to be faked from static HTML. It *used* to be listed here
+  as impossible: the tool ran no browser. The `browser` domain does, so what
+  keeps this open is that nobody has written the check, not that it can't be
+  written — and whoever does should note that `analytics` is advisory by
+  construction (`tools/lib/policy.mjs`), so a consent finding is a `💡` however
+  certain the browser is about it.
