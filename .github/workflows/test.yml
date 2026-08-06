@@ -18,6 +18,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Renaming the repo on 2026-08-06 swallowed the push event for the commit that
+  # did it — the commit landed on main and no run was ever created. A manual
+  # trigger means a gate that silently didn't fire can be fired by hand instead
+  # of pushing a throwaway commit to bait it.
+  workflow_dispatch:
 
 permissions:
   contents: read
